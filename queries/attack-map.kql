@@ -1,0 +1,22 @@
+let GeoIPDB_FULL = _GetWatchlist("geoip");
+
+let WindowsEvents = SecurityEvent
+| where EventID == 4625
+| where IpAddress !in ("-","127.0.0.1")
+| project TimeGenerated, Computer, IpAddress
+| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network);
+
+let LinuxEvents = Syslog
+| where SyslogMessage contains "Failed password"
+| extend IpAddress = extract(@"\\d+\\.\\d+\\.\\d+\\.\\d+",0,SyslogMessage)
+| where isnotempty(IpAddress)
+| project TimeGenerated, Computer, IpAddress
+| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network);
+
+union WindowsEvents, LinuxEvents
+| where not(ipv4_is_private(IpAddress))
+| where isnotempty(latitude) and isnotempty(longitude)
+| summarize AttackCount=count(), Targets=make_set(Computer,5)
+by IpAddress, latitude, longitude, cityname, countryname
+| extend Location=strcat(cityname," (",countryname,")")
+| project AttackCount, IpAddress, latitude, longitude, Location

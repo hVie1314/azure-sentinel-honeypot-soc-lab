@@ -1,0 +1,162 @@
+{
+    "version": "Notebook/1.0",
+    "items": [
+        {
+            "id": "81e9acf0-6040-4f03-9913-d730df3ece11",
+            "type": 1,
+            "name": "dashboard-title",
+            "content": {
+                "json": "# 🛡️ SOC Threat Monitoring Dashboard\n### Azure Honeypot Environment\n\n| Component | Description |\n|---|---|\n| SIEM Platform | Microsoft Sentinel |\n| Honeypot Services | RDP (Windows VM), SSH (Linux VM) |\n| Data Sources | SecurityEvent (Windows), Syslog (Linux) |\n| Purpose | Monitor and visualize brute-force activity targeting exposed honeypot services |\n\n---"
+            }
+        },
+        {
+            "type": 3,
+            "content": {
+                "version": "KqlItem/1.0",
+                "query": "let GeoIPDB_FULL = _GetWatchlist(\"geoip\");\n\nlet WindowsEvents = SecurityEvent\n| where EventID == 4625\n| where IpAddress !in (\"-\",\"127.0.0.1\")\n| project TimeGenerated, Computer, IpAddress\n| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network);\n\nlet LinuxEvents = Syslog\n| where SyslogMessage contains \"Failed password\"\n| extend IpAddress = extract(@\"\\\\d+\\\\.\\\\d+\\\\.\\\\d+\\\\.\\\\d+\",0,SyslogMessage)\n| where isnotempty(IpAddress)\n| project TimeGenerated, Computer, IpAddress\n| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network);\n\nunion WindowsEvents, LinuxEvents\n| where not(ipv4_is_private(IpAddress))\n| where isnotempty(latitude) and isnotempty(longitude)\n| summarize AttackCount=count(), Targets=make_set(Computer,5)\nby IpAddress, latitude, longitude, cityname, countryname\n| extend Location=strcat(cityname,\" (\",countryname,\")\")\n| project AttackCount, IpAddress, latitude, longitude, Location",
+                "size": 3,
+                "timeContext": {
+                    "durationMs": 604800000
+                },
+                "queryType": 0,
+                "resourceType": "microsoft.operationalinsights/workspaces",
+                "visualization": "map",
+                "mapSettings": {
+                    "locInfo": "LatLong",
+                    "latitude": "latitude",
+                    "longitude": "longitude",
+                    "sizeSettings": "AttackCount",
+                    "labelSettings": "Location",
+                    "legendMetric": "AttackCount",
+                    "opacity": 0.9,
+                    "itemColorSettings": {
+                        "nodeColorField": "AttackCount",
+                        "type": "heatmap",
+                        "heatmapPalette": "yellowOrangeRed"
+                    }
+                },
+                "crossComponentResources": [
+                    "/subscriptions/3f104c2f-5c64-4660-b610-5227c6d5a95e/resourcegroups/rg-soc-lab/providers/microsoft.operationalinsights/workspaces/law-soc-lab"
+                ],
+                "title": "Global Attack Map",
+                "headingLevel": 6
+            },
+            "name": "Global Attack Map",
+            "id": "cff2958d-3dc9-44df-ace8-793c84209149"
+        },
+        {
+            "type": 3,
+            "content": {
+                "version": "KqlItem/1.0",
+                "query": "let GeoIPDB_FULL = _GetWatchlist(\"geoip\");\nunion (\nSecurityEvent\n| where EventID == 4625\n| project TimeGenerated, IpAddress\n),(\nSyslog\n| where SyslogMessage contains \"Failed password\"\n| extend IpAddress = extract(@\"\\\\d+\\\\.\\\\d+\\\\.\\\\d+\\\\.\\\\d+\",0,SyslogMessage)\n| project TimeGenerated, IpAddress\n)\n| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network)\n| summarize Attacks=count()\nby bin(TimeGenerated,5m)\n| render timechart",
+                "size": 0,
+                "queryType": 0,
+                "resourceType": "microsoft.operationalinsights/workspaces",
+                "crossComponentResources": [
+                    "/subscriptions/3f104c2f-5c64-4660-b610-5227c6d5a95e/resourcegroups/rg-soc-lab/providers/microsoft.operationalinsights/workspaces/law-soc-lab"
+                ],
+                "title": "Attack Timeline",
+                "headingLevel": 6,
+                "timeContext": {
+                    "durationMs": 604800000
+                }
+            },
+            "name": "Attack Timeline",
+            "id": "15d4514e-b8dd-4997-81bf-c32a4a34af13"
+        },
+        {
+            "type": 3,
+            "content": {
+                "version": "KqlItem/1.0",
+                "query": "let GeoIPDB_FULL = _GetWatchlist(\"geoip\");\nunion (\nSecurityEvent\n| where EventID == 4625\n| project IpAddress\n),(\nSyslog\n| where SyslogMessage contains \"Failed password\"\n| extend IpAddress = extract(@\"\\\\d+\\\\.\\\\d+\\\\.\\\\d+\\\\.\\\\d+\",0,SyslogMessage)\n| project IpAddress\n)\n| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network)\n| where not(ipv4_is_private(IpAddress))\n| summarize Attacks=count() by countryname\n| order by Attacks desc\n| render barchart",
+                "size": 0,
+                "queryType": 0,
+                "resourceType": "microsoft.operationalinsights/workspaces",
+                "visualization": "barchart",
+                "crossComponentResources": [
+                    "/subscriptions/3f104c2f-5c64-4660-b610-5227c6d5a95e/resourcegroups/rg-soc-lab/providers/microsoft.operationalinsights/workspaces/law-soc-lab"
+                ],
+                "title": "Top Attacker Countries",
+                "timeContext": {
+                    "durationMs": 604800000
+                },
+                "headingLevel": 6
+            },
+            "name": "Top Attacker Countries",
+            "id": "d1ffc785-fe53-4ea9-98f3-09f69a690153"
+        },
+        {
+            "type": 3,
+            "content": {
+                "version": "KqlItem/1.0",
+                "query": "let Win = SecurityEvent\n| where EventID == 4625\n| summarize Count=count() | extend Service=\"RDP\";\n\nlet Lin = Syslog\n| where SyslogMessage contains \"Failed password\"\n| summarize Count=count() | extend Service=\"SSH\";\n\nunion Win, Lin\n| render piechart",
+                "size": 0,
+                "queryType": 0,
+                "resourceType": "microsoft.operationalinsights/workspaces",
+                "crossComponentResources": [
+                    "/subscriptions/3f104c2f-5c64-4660-b610-5227c6d5a95e/resourcegroups/rg-soc-lab/providers/microsoft.operationalinsights/workspaces/law-soc-lab"
+                ],
+                "title": "Attack Distribution by Service"
+            },
+            "name": "Attack Distribution by Service",
+            "id": "e69024f6-9470-4102-bab2-54487d59f92a"
+        },
+        {
+            "type": 3,
+            "content": {
+                "version": "KqlItem/1.0",
+                "query": "let GeoIPDB_FULL = _GetWatchlist(\"geoip\");\nunion (\nSecurityEvent\n| where EventID == 4625\n| project IpAddress\n),(\nSyslog\n| where SyslogMessage contains \"Failed password\"\n| extend IpAddress = extract(@\"\\\\d+\\\\.\\\\d+\\\\.\\\\d+\\\\.\\\\d+\",0,SyslogMessage)\n| project IpAddress\n)\n| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network)\n| where not(ipv4_is_private(IpAddress))\n| summarize Attacks=count()\nby IpAddress, countryname, cityname\n| top 10 by Attacks",
+                "size": 0,
+                "queryType": 0,
+                "resourceType": "microsoft.operationalinsights/workspaces",
+                "visualization": "table",
+                "crossComponentResources": [
+                    "/subscriptions/3f104c2f-5c64-4660-b610-5227c6d5a95e/resourcegroups/rg-soc-lab/providers/microsoft.operationalinsights/workspaces/law-soc-lab"
+                ],
+                "title": "Top Attacker IP",
+                "headingLevel": 6,
+                "gridSettings": {
+                    "sortBy": [
+                        {
+                            "itemKey": "Attacks",
+                            "sortOrder": 2
+                        }
+                    ]
+                }
+            },
+            "name": "Top Attacker IP",
+            "styleSettings": {
+                "margin": "50",
+                "padding": "100",
+                "showBorder": true
+            },
+            "id": "3ee25530-9d59-48ec-afbf-2a4b630a51d4"
+        },
+        {
+            "type": 3,
+            "content": {
+                "version": "KqlItem/1.0",
+                "query": "union (\nSecurityEvent\n| where EventID == 4625\n| project Account\n),(\nSyslog\n| where SyslogMessage contains \"Failed password\"\n| extend Account = extract(\"Failed password for (\\\\w+)\",1,SyslogMessage)\n| project Account\n)\n| summarize Attempts=count() by Account\n| top 10 by Attempts\n| render barchart",
+                "size": 0,
+                "queryType": 0,
+                "resourceType": "microsoft.operationalinsights/workspaces",
+                "crossComponentResources": [
+                    "/subscriptions/3f104c2f-5c64-4660-b610-5227c6d5a95e/resourcegroups/rg-soc-lab/providers/microsoft.operationalinsights/workspaces/law-soc-lab"
+                ],
+                "timeContext": {
+                    "durationMs": 604800000
+                },
+                "title": "Most Targeted Accounts"
+            },
+            "name": "Most Targeted Accounts",
+            "id": "1aba3e2c-3ae2-4368-9621-84c08fef8f6d"
+        }
+    ],
+    "isLocked": false,
+    "fallbackResourceIds": [
+        "/subscriptions/3f104c2f-5c64-4660-b610-5227c6d5a95e/resourcegroups/rg-soc-lab/providers/microsoft.operationalinsights/workspaces/law-soc-lab"
+    ],
+    "context": {
+        "ownerId": "/subscriptions/3f104c2f-5c64-4660-b610-5227c6d5a95e/resourcegroups/rg-soc-lab/providers/microsoft.operationalinsights/workspaces/law-soc-lab"
+    }
+}

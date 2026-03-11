@@ -1,0 +1,13 @@
+union (
+SecurityEvent
+| where EventID == 4625
+| project Account
+),(
+Syslog
+| where SyslogMessage contains "Failed password"
+| extend Account = extract("Failed password for (\\w+)",1,SyslogMessage)
+| project Account
+)
+| summarize Attempts=count() by Account
+| top 10 by Attempts
+| render barchart

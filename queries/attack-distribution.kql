@@ -1,0 +1,10 @@
+let Win = SecurityEvent
+| where EventID == 4625
+| summarize Count=count() | extend Service="RDP";
+
+let Lin = Syslog
+| where SyslogMessage contains "Failed password"
+| summarize Count=count() | extend Service="SSH";
+
+union Win, Lin
+| render piechart

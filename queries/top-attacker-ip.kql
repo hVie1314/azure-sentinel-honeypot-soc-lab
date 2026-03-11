@@ -1,0 +1,17 @@
+let GeoIPDB_FULL = _GetWatchlist("geoip");
+
+union (
+SecurityEvent
+| where EventID == 4625
+| project IpAddress
+),(
+Syslog
+| where SyslogMessage contains "Failed password"
+| extend IpAddress = extract(@"\\d+\\.\\d+\\.\\d+\\.\\d+",0,SyslogMessage)
+| project IpAddress
+)
+| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network)
+| where not(ipv4_is_private(IpAddress))
+| summarize Attacks=count()
+by IpAddress, countryname, cityname
+| top 10 by Attacks

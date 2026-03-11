@@ -1,0 +1,16 @@
+let GeoIPDB_FULL = _GetWatchlist("geoip");
+
+union (
+SecurityEvent
+| where EventID == 4625
+| project TimeGenerated, IpAddress
+),(
+Syslog
+| where SyslogMessage contains "Failed password"
+| extend IpAddress = extract(@"\\d+\\.\\d+\\.\\d+\\.\\d+",0,SyslogMessage)
+| project TimeGenerated, IpAddress
+)
+| evaluate ipv4_lookup(GeoIPDB_FULL, IpAddress, network)
+| summarize Attacks=count()
+by bin(TimeGenerated,5m)
+| render timechart
