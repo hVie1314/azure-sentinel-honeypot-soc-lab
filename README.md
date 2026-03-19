@@ -118,7 +118,7 @@ Syslog
 
 File workbook nằm tại:
 
-`dashboard/sentinel-workbook.json`
+[dashboard/sentinel-workbook.json](dashboard/sentinel-workbook.json)
 
 Có thể import trực tiếp file này vào Microsoft Sentinel để dựng lại dashboard của lab.
 
