@@ -128,7 +128,8 @@ Lưu ý: một số truy vấn dùng watchlist `geoip` để enrich dữ liệu 
 
 ## GeoIP dataset
 
-File geoip-summarized.csv được dùng làm watchlist trong Microsoft Sentinelđể enrich IP attacker với thông tin vị trí địa lý.
+File [geoip-summarized.csv](geoip-summarized.csv)
+ được dùng làm watchlist trong Microsoft Sentinelđể enrich IP attacker với thông tin vị trí địa lý.
 
 ---
 
